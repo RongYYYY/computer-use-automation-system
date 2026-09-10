@@ -9,7 +9,7 @@ import type {
   ValueExpression,
 } from "../artifact/schema.js";
 import { parseCapabilityArtifact } from "../artifact/schema.js";
-import type { HandoffHandler } from "../handoff/types.js";
+import type { HandoffHandler, HandoffResult } from "../handoff/types.js";
 import { RunLogger } from "../observability/run-logger.js";
 import { assertPolicy } from "../policy/engine.js";
 import { parseExtracted } from "../replay/engine.js";
@@ -114,7 +114,9 @@ export async function discoverCapability(options: DiscoveryOptions): Promise<Dis
       fingerprints.push(fingerprint);
       if (fingerprints.slice(-3).every((item) => item === fingerprint) && fingerprints.length >= 3) {
         const handoff = await requestHandoff(options, logger, "The UI state repeated three times", undefined);
-        if (!handoff) return stopped("discovery_stuck", "The UI state repeated three times", logger);
+        if (!handoff || handoff.resolution === "abort") {
+          return stopped("discovery_stuck", "The UI state repeated three times", logger);
+        }
         fingerprints.length = 0;
       }
 
@@ -196,7 +198,9 @@ async function executeDecision(context: ExecuteDecisionOptions): Promise<Discove
   }
   if (decision.action === "escalate") {
     const resumed = await requestHandoff(options, logger, decision.reason, undefined);
-    if (!resumed) return stopped("human_aborted", decision.reason, logger);
+    if (!resumed || resumed.resolution === "abort") {
+      return stopped("human_aborted", decision.reason, logger);
+    }
     history.push({ action: "escalate", result: "human resumed session" });
     return undefined;
   }
@@ -284,8 +288,11 @@ async function executeDecision(context: ExecuteDecisionOptions): Promise<Discove
   const policyDecision = assertPolicy(step.action, options.policy, options.inputs);
   let performedByHuman = false;
   if (policyDecision.requiresHuman) {
-    performedByHuman = await requestHandoff(options, logger, policyDecision.reason, step.id);
-    if (!performedByHuman) return stopped("human_aborted", policyDecision.reason, logger);
+    const handoff = await requestHandoff(options, logger, policyDecision.reason, step.id);
+    if (!handoff || handoff.resolution === "abort") {
+      return stopped("human_aborted", policyDecision.reason, logger);
+    }
+    performedByHuman = handoff.resolution === "completed";
   }
 
   if (!performedByHuman) {
@@ -342,8 +349,8 @@ async function requestHandoff(
   logger: RunLogger,
   reason: string,
   stepId: string | undefined,
-): Promise<boolean> {
-  if (!options.handoff) return false;
+): Promise<HandoffResult | undefined> {
+  if (!options.handoff) return undefined;
   const screenshotPath = logger.evidencePath(`intervention-${stepId ?? "discovery"}.png`);
   await options.surface.screenshot(screenshotPath);
   const result = await options.handoff.request({
@@ -355,7 +362,7 @@ async function requestHandoff(
     currentUrl: options.surface.currentUrl(),
   });
   await logger.event("handoff.resolved", result);
-  return result.resolution !== "abort";
+  return result;
 }
 
 function stopped(code: string, message: string, logger: RunLogger): DiscoveryResult {

@@ -228,3 +228,78 @@ export function createLookupCapability(origin: string, fault?: string): Capabili
     ],
   };
 }
+
+export function createHandoffCapability(origin: string): CapabilityArtifact {
+  const lookup = createLookupCapability(origin);
+  const openSubaccount: TargetSpec = {
+    description: "Open a new sub-account link",
+    frame: { urlPattern: "^/legacy/account(?:\\?.*)?$", name: "workarea" },
+    strategies: [
+      { kind: "role", role: "link", name: "Open a new sub-account", exact: true },
+      { kind: "text", text: "Open a new sub-account", exact: true },
+    ],
+  };
+  const identityVerified: TargetSpec = {
+    description: "Identity verified checkbox",
+    frame: { urlPattern: "^/legacy/subaccount/start(?:\\?.*)?$", name: "workarea" },
+    strategies: [
+      { kind: "role", role: "checkbox", name: "Identity verified", exact: true },
+      { kind: "label", text: "Identity verified", exact: true },
+      { kind: "css", selector: "input[name='verified']" },
+    ],
+  };
+  const continueToReview: TargetSpec = {
+    description: "Continue to review button",
+    frame: { urlPattern: "^/legacy/subaccount/start(?:\\?.*)?$", name: "workarea" },
+    strategies: [
+      { kind: "role", role: "button", name: "Continue to review", exact: true },
+      { kind: "text", text: "Continue to review", exact: true },
+    ],
+  };
+  const reviewHeading: TargetSpec = {
+    description: "Review New Sub-account heading",
+    frame: { urlPattern: "^/legacy/subaccount/review(?:\\?.*)?$", name: "workarea" },
+    strategies: [
+      { kind: "role", role: "heading", name: "Review New Sub-account", exact: true },
+    ],
+  };
+
+  return {
+    ...lookup,
+    id: "northstar.review-new-subaccount",
+    name: "Reach new sub-account review",
+    description:
+      "Look up a synthetic member, open the savings account, and reach sub-account review with human identity verification.",
+    steps: [
+      ...lookup.steps,
+      {
+        id: "open-subaccount-setup",
+        description: "Open the new sub-account workflow",
+        action: { kind: "click", target: openSubaccount, risk: "safe" },
+        preconditions: [{ kind: "visible", target: openSubaccount }],
+        postconditions: [{ kind: "visible", target: identityVerified }],
+        timeoutMs: 5_000,
+        retry: { maxAttempts: 2, backoffMs: 150 },
+      },
+      {
+        id: "verify-member-identity",
+        description: "Require a human operator to attest that identity was verified",
+        action: { kind: "click", target: identityVerified, risk: "risky" },
+        preconditions: [{ kind: "visible", target: identityVerified }],
+        postconditions: [],
+        timeoutMs: 5_000,
+        retry: { maxAttempts: 1, backoffMs: 0 },
+      },
+      {
+        id: "continue-to-subaccount-review",
+        description: "Continue to the non-committing review screen",
+        action: { kind: "click", target: continueToReview, risk: "safe" },
+        preconditions: [{ kind: "visible", target: continueToReview }],
+        postconditions: [{ kind: "visible", target: reviewHeading }],
+        timeoutMs: 5_000,
+        retry: { maxAttempts: 1, backoffMs: 0 },
+      },
+    ],
+    success: { conditions: [{ kind: "visible", target: reviewHeading }] },
+  };
+}

@@ -1,0 +1,19 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and builds
+node_modules/
+dist/
+coverage/
+
+# Playwright runtime output
+playwright-report/
+test-results/
+
+# Local operating-system files
+.DS_Store
+
+# Local assignment reference; do not publish it with the submission.
+Assignment A — Computer-Use Automation System.pdf

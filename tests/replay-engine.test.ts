@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -61,9 +61,21 @@ describe("deterministic replay", () => {
   });
 
   it("dismisses a known interstitial and retries within its bound", async () => {
-    await expect(replay("10002", "dialog")).resolves.toMatchObject({
+    const logger = new RunLogger({
+      rootDirectory: evidenceRoot,
+      runId: "recoverable-dialog",
+      sensitiveValues: { memberId: "10002" },
+    });
+    const result = await replayCapability({
+      artifact: createLookupCapability(server!.origin, "dialog"),
+      inputs: { memberId: "10002" },
+      surface: surface!,
+      logger,
+    });
+    expect(result).toMatchObject({
       status: "success",
       outputs: { balance: 87.14 },
     });
+    await expect(readFile(logger.logPath, "utf8")).resolves.toContain('"kind":"recovery.completed"');
   });
 });

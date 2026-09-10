@@ -55,13 +55,18 @@ describe("same-session handoff", () => {
     const handoff = new SameSessionHandoff({
       surface: surface!,
       logger,
-      prompt: async (request) => {
+      prompt: async (request, control) => {
         expect(request.stepId).toBe("verify-member-identity");
         const liveFrame = surface!.page.frames().find((frame) =>
           frame.url().includes("/legacy/subaccount/start"),
         );
         if (!liveFrame) throw new Error("Live sub-account frame was not available");
         await liveFrame.getByLabel("Identity verified", { exact: true }).click();
+        await control.recordAction({
+          kind: "click",
+          target: "Identity verified checkbox",
+          checked: true,
+        });
         return { resolution: "completed", note: "Identity verified in the live session" };
       },
     });

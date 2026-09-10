@@ -89,11 +89,14 @@ Return exactly one schema-valid decision. Choose only candidate IDs present in t
 Work toward the user's goal one action at a time:
 - Use type with valueSource=input and inputKey when entering a declared invocation input.
 - Use extract for each declared output, choosing the candidate that contains only the desired value when possible.
+- Prefer output candidates with a stable label, name, or semantic attribute; do not rely on the current output value as its locator.
 - Use finish only after every declared output has been extracted and choose a visible candidate that is a robust final checkpoint.
 - Use business_outcome for a legitimate domain result such as no record found.
 - Use escalate when proceeding is unsafe, the state is ambiguous, or repeated attempts are not useful.
-- Classify clicks that submit, mutate, confirm, transfer, open, freeze, or otherwise change records conservatively.
+- Treat navigation, search submission, opening a record for viewing, and extraction as safe.
+- Classify clicks that mutate, confirm, transfer, create, freeze, attest, or otherwise change records conservatively.
 - Never invent selectors, candidate IDs, credentials, or data.
+- Do not repeat observed personal or financial values in the reason.
 
 The reason is a short operational explanation. Do not include chain-of-thought or hidden reasoning.
 Set fields that do not apply to null.`;

@@ -58,6 +58,7 @@ describe("capability discovery", () => {
     }
     expect(discovery.outputs).toEqual({ balance: 12_450.73 });
     expect(JSON.stringify(discovery.artifact)).not.toContain("data-cua-runtime-ref");
+    expect(JSON.stringify(discovery.artifact)).not.toContain("12,450.73");
     expect(discovery.artifact.steps.map(({ action }) => action.kind)).toEqual([
       "navigate",
       "type",
@@ -71,17 +72,19 @@ describe("capability discovery", () => {
     });
 
     const replaySurface = await newSurface();
-    await expect(
-      replayCapability({
-        artifact: discovery.artifact,
-        inputs: { memberId: "10002" },
-        surface: replaySurface,
-        logger: new RunLogger({
-          rootDirectory: evidenceRoot,
-          sensitiveValues: { memberId: "10002" },
-        }),
+    const replay = await replayCapability({
+      artifact: discovery.artifact,
+      inputs: { memberId: "10002" },
+      surface: replaySurface,
+      logger: new RunLogger({
+        rootDirectory: evidenceRoot,
+        sensitiveValues: { memberId: "10002" },
       }),
-    ).resolves.toMatchObject({ status: "success", outputs: { balance: 87.14 } });
+    });
+    if (replay.status !== "success") {
+      throw new Error(`Generated artifact did not replay: ${JSON.stringify(replay)}`);
+    }
+    expect(replay.outputs).toEqual({ balance: 87.14 });
   });
 });
 

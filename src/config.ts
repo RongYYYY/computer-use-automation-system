@@ -1,7 +1,7 @@
 import "dotenv/config";
 import dotenv from "dotenv";
 
-dotenv.config({ path: ".env.local", override: false });
+dotenv.config({ path: ".env.local", override: false, quiet: true });
 
 export interface AppConfig {
   readonly openaiApiKey: string | undefined;

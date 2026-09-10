@@ -7,7 +7,18 @@ import type { PlaywrightSurface } from "../surface/playwright-surface.js";
 import { ControlLease } from "./control-lease.js";
 import type { HandoffHandler, HandoffResult, InterventionRequest } from "./types.js";
 
-export type OperatorPrompt = (request: InterventionRequest) => Promise<HandoffResult>;
+export interface OperatorControl {
+  recordAction(action: {
+    readonly kind: "click" | "change" | "keypress";
+    readonly target: string;
+    readonly checked?: boolean;
+  }): Promise<void>;
+}
+
+export type OperatorPrompt = (
+  request: InterventionRequest,
+  control: OperatorControl,
+) => Promise<HandoffResult>;
 
 export interface SameSessionHandoffOptions {
   readonly surface: PlaywrightSurface;
@@ -43,13 +54,23 @@ export class SameSessionHandoff implements HandoffHandler {
 
     let result: HandoffResult;
     try {
-      result = await this.prompt(request);
+      result = await this.prompt(request, {
+        recordAction: async (action) => {
+          if (this.lease.owner !== "human") {
+            throw new Error("Operator actions may only be recorded while the human owns control");
+          }
+          await this.logger.event("human.action", { ...action, source: "operator_surface" });
+        },
+      });
     } catch (error) {
       result = {
         resolution: "abort",
         note: error instanceof Error ? error.message : String(error),
       };
     }
+    // Browser bindings are asynchronous relative to the operator's last DOM event.
+    // Flush them before transferring ownership so that the final human action is attributed correctly.
+    await this.surface.page.waitForTimeout(75);
 
     if (result.resolution === "abort") {
       await this.logTransition(this.lease.abort());

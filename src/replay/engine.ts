@@ -162,6 +162,18 @@ async function executeStep(options: ExecuteStepOptions): Promise<ReplayResult | 
   const { step, artifact, inputs, outputs, surface, logger } = options;
   await logger.event("step.started", { stepId: step.id, action: step.action.kind });
 
+  const blockingOutcome = await detectKnownOutcome(artifact, surface, inputs);
+  if (blockingOutcome?.outcome.classification === "recoverable") {
+    const didRecover = await recover(blockingOutcome.outcome, options);
+    if (!didRecover) {
+      throw new ClassifiedRunError(
+        "recovery_exhausted",
+        `Recovery limit reached for ${blockingOutcome.outcome.code}`,
+        step.id,
+      );
+    }
+  }
+
   for (const condition of step.preconditions) {
     try {
       await surface.waitFor(condition, inputs, step.timeoutMs);

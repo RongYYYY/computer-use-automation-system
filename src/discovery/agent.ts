@@ -206,7 +206,18 @@ async function executeDecision(context: ExecuteDecisionOptions): Promise<Discove
   }
 
   const candidate = assertCandidate(decision, observation.candidates);
-  const target = options.surface.buildTarget(candidate.id);
+  const observedTarget = options.surface.buildTarget(candidate.id);
+  const extractionContract =
+    decision.action === "extract"
+      ? options.outputContracts.find(({ name }) => name === decision.outputName)
+      : undefined;
+  if (decision.action === "extract" && !extractionContract) {
+    throw new Error(`Model selected undeclared output: ${decision.outputName}`);
+  }
+  const target =
+    decision.action === "extract"
+      ? stableExtractionTarget(observedTarget, candidate, extractionContract!)
+      : observedTarget;
 
   if (decision.action === "finish") {
     const missing = options.outputContracts
@@ -241,8 +252,12 @@ async function executeDecision(context: ExecuteDecisionOptions): Promise<Discove
     return { status: "success", artifact, outputs, runId: logger.runId };
   }
 
+  const stepSubject =
+    decision.action === "extract"
+      ? decision.outputName!
+      : candidate.label || candidate.name || candidate.text || candidate.tag;
   const stepId = `step-${String(steps.length + 1).padStart(2, "0")}-${slug(decision.action)}-${slug(
-    candidate.name || candidate.text || candidate.tag,
+    stepSubject,
   )}`;
   const common = {
     id: stepId,
@@ -270,9 +285,6 @@ async function executeDecision(context: ExecuteDecisionOptions): Promise<Discove
     };
   } else {
     const outputName = decision.outputName!;
-    if (!options.outputContracts.some(({ name }) => name === outputName)) {
-      throw new Error(`Model selected undeclared output: ${outputName}`);
-    }
     step = {
       ...common,
       action: {
@@ -384,4 +396,27 @@ function slug(value: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 32);
+}
+
+function stableExtractionTarget(
+  target: ReturnType<SurfaceAdapter["buildTarget"]>,
+  candidate: SurfaceObservation["candidates"][number],
+  contract: FieldContract,
+): ReturnType<SurfaceAdapter["buildTarget"]> {
+  const valueIndependent = target.strategies.filter((strategy) => {
+    if (strategy.kind === "label") return true;
+    if (strategy.kind === "css") return strategy.selector !== candidate.tag;
+    if (strategy.kind === "role") return candidate.name !== candidate.text;
+    return false;
+  });
+  if (valueIndependent.length === 0) {
+    throw new Error(
+      `Output ${contract.name} has no value-independent locator; navigate to a labeled or semantically marked field`,
+    );
+  }
+  return {
+    ...target,
+    description: contract.description,
+    strategies: valueIndependent,
+  };
 }

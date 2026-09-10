@@ -151,7 +151,7 @@ export function createDemoApp(): Express {
           <tr>
             <td><a href="${accountUrl(member.id, "savings", fault)}">Savings</a></td>
             <td>•••• 4412</td>
-            <td>${currency(member.savingsBalance)}</td>
+            <td data-field="savings-available-balance">${currency(member.savingsBalance)}</td>
           </tr>
           <tr>
             <td><a href="${accountUrl(member.id, "checking", fault)}">Checking</a></td>

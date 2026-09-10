@@ -1,0 +1,379 @@
+{
+  "schemaVersion": "1.0",
+  "id": "northstar.lookup-savings-balance",
+  "version": "1.0.0",
+  "name": "Look up savings balance",
+  "description": "Find a synthetic member and return the current savings balance.",
+  "createdAt": "2026-09-10T17:04:23.350Z",
+  "app": {
+    "family": "northstar-demo",
+    "surface": "browser",
+    "baseUrlPattern": "http://127.0.0.1:4317",
+    "supportedVariants": [
+      "base",
+      "maintenance-notice"
+    ]
+  },
+  "inputs": [
+    {
+      "name": "memberId",
+      "type": "string",
+      "description": "Synthetic member identifier",
+      "required": true,
+      "sensitive": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "balance",
+      "type": "number",
+      "description": "Savings balance in USD",
+      "required": true,
+      "sensitive": true
+    }
+  ],
+  "policy": {
+    "allowedOrigins": [
+      "http://127.0.0.1:4317"
+    ],
+    "allowedPathPatterns": [
+      "^/legacy(?:/|$|\\?)"
+    ],
+    "allowedActions": [
+      "navigate",
+      "click",
+      "type",
+      "extract",
+      "wait_for"
+    ],
+    "riskyActionPolicy": "require_human"
+  },
+  "steps": [
+    {
+      "id": "step-01-open-target",
+      "description": "Open the configured target application",
+      "action": {
+        "kind": "navigate",
+        "url": {
+          "source": "literal",
+          "value": "http://127.0.0.1:4317/legacy"
+        },
+        "risk": "safe"
+      },
+      "preconditions": [],
+      "postconditions": [],
+      "timeoutMs": 10000,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 200
+      }
+    },
+    {
+      "id": "step-02-type-member-number",
+      "description": "Enter the supplied member identifier in the member search field.",
+      "action": {
+        "kind": "type",
+        "target": {
+          "description": "Member number",
+          "frame": {
+            "urlPattern": "^/legacy/search(?:\\?.*)?$",
+            "name": "workarea"
+          },
+          "strategies": [
+            {
+              "kind": "role",
+              "role": "textbox",
+              "name": "Member number",
+              "exact": true
+            },
+            {
+              "kind": "label",
+              "text": "Member number",
+              "exact": true
+            },
+            {
+              "kind": "css",
+              "selector": "input[name=\"member_number\"]"
+            }
+          ]
+        },
+        "value": {
+          "source": "input",
+          "key": "memberId"
+        },
+        "clearFirst": true,
+        "risk": "safe"
+      },
+      "preconditions": [
+        {
+          "kind": "visible",
+          "target": {
+            "description": "Member number",
+            "frame": {
+              "urlPattern": "^/legacy/search(?:\\?.*)?$",
+              "name": "workarea"
+            },
+            "strategies": [
+              {
+                "kind": "role",
+                "role": "textbox",
+                "name": "Member number",
+                "exact": true
+              },
+              {
+                "kind": "label",
+                "text": "Member number",
+                "exact": true
+              },
+              {
+                "kind": "css",
+                "selector": "input[name=\"member_number\"]"
+              }
+            ]
+          }
+        }
+      ],
+      "postconditions": [],
+      "timeoutMs": 7000,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 200
+      }
+    },
+    {
+      "id": "step-03-click-search",
+      "description": "Submit the member search.",
+      "action": {
+        "kind": "click",
+        "target": {
+          "description": "Search",
+          "frame": {
+            "urlPattern": "^/legacy/search(?:\\?.*)?$",
+            "name": "workarea"
+          },
+          "strategies": [
+            {
+              "kind": "role",
+              "role": "button",
+              "name": "Search",
+              "exact": true
+            }
+          ]
+        },
+        "risk": "safe"
+      },
+      "preconditions": [
+        {
+          "kind": "visible",
+          "target": {
+            "description": "Search",
+            "frame": {
+              "urlPattern": "^/legacy/search(?:\\?.*)?$",
+              "name": "workarea"
+            },
+            "strategies": [
+              {
+                "kind": "role",
+                "role": "button",
+                "name": "Search",
+                "exact": true
+              }
+            ]
+          }
+        }
+      ],
+      "postconditions": [],
+      "timeoutMs": 7000,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 200
+      }
+    },
+    {
+      "id": "step-04-extract-balance",
+      "description": "Extract the savings available balance using its stable data-field attribute.",
+      "action": {
+        "kind": "extract",
+        "target": {
+          "description": "Savings balance in USD",
+          "frame": {
+            "urlPattern": "^/legacy/member(?:\\?.*)?$",
+            "name": "workarea"
+          },
+          "strategies": [
+            {
+              "kind": "css",
+              "selector": "td[data-field=\"savings-available-balance\"]"
+            }
+          ]
+        },
+        "output": "balance",
+        "parser": "currency",
+        "risk": "safe"
+      },
+      "preconditions": [
+        {
+          "kind": "visible",
+          "target": {
+            "description": "Savings balance in USD",
+            "frame": {
+              "urlPattern": "^/legacy/member(?:\\?.*)?$",
+              "name": "workarea"
+            },
+            "strategies": [
+              {
+                "kind": "css",
+                "selector": "td[data-field=\"savings-available-balance\"]"
+              }
+            ]
+          }
+        }
+      ],
+      "postconditions": [],
+      "timeoutMs": 7000,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 200
+      }
+    }
+  ],
+  "success": {
+    "conditions": [
+      {
+        "kind": "visible",
+        "target": {
+          "description": "Member Detail",
+          "frame": {
+            "urlPattern": "^/legacy/member(?:\\?.*)?$",
+            "name": "workarea"
+          },
+          "strategies": [
+            {
+              "kind": "role",
+              "role": "heading",
+              "name": "Member Detail",
+              "exact": true
+            },
+            {
+              "kind": "text",
+              "text": "Member Detail",
+              "exact": true
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "knownOutcomes": [
+    {
+      "code": "member_not_found",
+      "classification": "business",
+      "description": "No member exists for the supplied identifier.",
+      "condition": {
+        "kind": "visible",
+        "target": {
+          "description": "Member not found result",
+          "frame": {
+            "urlPattern": "^/legacy/member(?:\\?.*)?$",
+            "name": "workarea"
+          },
+          "strategies": [
+            {
+              "kind": "text",
+              "text": "No member found for the supplied member number.",
+              "exact": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "code": "permission_denied",
+      "classification": "failure",
+      "description": "The operator role cannot view this member record.",
+      "condition": {
+        "kind": "visible",
+        "target": {
+          "description": "Permission denied error",
+          "frame": {
+            "urlPattern": "^/legacy/member(?:\\?.*)?$",
+            "name": "workarea"
+          },
+          "strategies": [
+            {
+              "kind": "role",
+              "role": "heading",
+              "name": "Permission denied",
+              "exact": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "code": "session_expired",
+      "classification": "failure",
+      "description": "The servicing session expired and requires a new login.",
+      "condition": {
+        "kind": "visible",
+        "target": {
+          "description": "Session expired error",
+          "frame": {
+            "urlPattern": "^/legacy/member(?:\\?.*)?$",
+            "name": "workarea"
+          },
+          "strategies": [
+            {
+              "kind": "role",
+              "role": "heading",
+              "name": "Session expired",
+              "exact": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "code": "maintenance_notice",
+      "classification": "recoverable",
+      "description": "A known maintenance notice blocks the current action.",
+      "condition": {
+        "kind": "visible",
+        "target": {
+          "description": "Maintenance notice",
+          "frame": {
+            "urlPattern": "^/legacy/search(?:\\?.*)?$",
+            "name": "workarea"
+          },
+          "strategies": [
+            {
+              "kind": "role",
+              "role": "dialog",
+              "name": "System notice",
+              "exact": true
+            }
+          ]
+        }
+      },
+      "recovery": {
+        "action": "dismiss_and_retry",
+        "target": {
+          "description": "Continue button on maintenance notice",
+          "frame": {
+            "urlPattern": "^/legacy/search(?:\\?.*)?$",
+            "name": "workarea"
+          },
+          "strategies": [
+            {
+              "kind": "role",
+              "role": "button",
+              "name": "Continue",
+              "exact": true
+            }
+          ]
+        },
+        "maxAttempts": 1
+      }
+    }
+  ]
+}

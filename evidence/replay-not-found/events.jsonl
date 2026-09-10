@@ -1,0 +1,11 @@
+{"sequence":1,"timestamp":"2026-09-10T17:04:48.383Z","runId":"replay-not-found","kind":"replay.started","data":{"capabilityId":"northstar.lookup-savings-balance","capabilityVersion":"1.0.0","inputs":{"memberId":"[REDACTED:memberId]"}}}
+{"sequence":2,"timestamp":"2026-09-10T17:04:48.385Z","runId":"replay-not-found","kind":"step.started","data":{"stepId":"step-01-open-target","action":"navigate"}}
+{"sequence":3,"timestamp":"2026-09-10T17:04:48.422Z","runId":"replay-not-found","kind":"step.completed","data":{"stepId":"step-01-open-target","attempt":1,"performedByHuman":false}}
+{"sequence":4,"timestamp":"2026-09-10T17:04:48.422Z","runId":"replay-not-found","kind":"step.started","data":{"stepId":"step-02-type-member-number","action":"type"}}
+{"sequence":5,"timestamp":"2026-09-10T17:04:48.553Z","runId":"replay-not-found","kind":"locator.resolved","data":{"stepId":"step-02-type-member-number","target":"Member number","strategyKind":"role","strategyIndex":0,"frameUrl":"http://127.0.0.1:4317/legacy/search"}}
+{"sequence":6,"timestamp":"2026-09-10T17:04:48.553Z","runId":"replay-not-found","kind":"step.completed","data":{"stepId":"step-02-type-member-number","attempt":1,"performedByHuman":false}}
+{"sequence":7,"timestamp":"2026-09-10T17:04:48.554Z","runId":"replay-not-found","kind":"step.started","data":{"stepId":"step-03-click-search","action":"click"}}
+{"sequence":8,"timestamp":"2026-09-10T17:04:48.634Z","runId":"replay-not-found","kind":"locator.resolved","data":{"stepId":"step-03-click-search","target":"Search","strategyKind":"role","strategyIndex":0,"frameUrl":"http://127.0.0.1:4317/legacy/search"}}
+{"sequence":9,"timestamp":"2026-09-10T17:04:48.635Z","runId":"replay-not-found","kind":"step.completed","data":{"stepId":"step-03-click-search","attempt":1,"performedByHuman":false}}
+{"sequence":10,"timestamp":"2026-09-10T17:04:48.637Z","runId":"replay-not-found","kind":"step.started","data":{"stepId":"step-04-extract-balance","action":"extract"}}
+{"sequence":11,"timestamp":"2026-09-10T17:04:48.680Z","runId":"replay-not-found","kind":"replay.business_outcome","data":{"status":"business_outcome","code":"member_not_found","details":{"description":"No member exists for the supplied identifier."},"runId":"replay-not-found"}}

@@ -291,7 +291,7 @@ export class PlaywrightSurface implements SurfaceAdapter {
       if (condition.kind === "url_matches") {
         return new RegExp(condition.pattern).test(this.page.url());
       }
-      const resolved = await this.resolve(condition.target, timeoutMs);
+      const resolved = await this.resolve(condition.target, timeoutMs, false);
       if (condition.kind === "visible") {
         return resolved.locator.isVisible();
       }
@@ -349,8 +349,14 @@ export class PlaywrightSurface implements SurfaceAdapter {
     return { frame, candidate };
   }
 
-  private async resolve(target: TargetSpec, timeoutMs: number): Promise<ResolvedLocator> {
-    const frames = this.targetFrames(target);
+  private async resolve(
+    target: TargetSpec,
+    timeoutMs: number,
+    waitForFrame = true,
+  ): Promise<ResolvedLocator> {
+    const frames = waitForFrame
+      ? await this.waitForTargetFrames(target, timeoutMs)
+      : this.targetFrames(target);
     const attempts: ResolutionAttempt[] = [];
 
     for (const [strategyIndex, strategy] of target.strategies.entries()) {
@@ -390,11 +396,26 @@ export class PlaywrightSurface implements SurfaceAdapter {
     if (!target.frame) return [this.page.mainFrame()];
     const pattern = new RegExp(target.frame.urlPattern);
     return this.page.frames().filter((frame) => {
-      const url = new URL(frame.url());
+      let url: URL;
+      try {
+        url = new URL(frame.url());
+      } catch {
+        return false;
+      }
       const matchesUrl = pattern.test(`${url.pathname}${url.search}`) || pattern.test(frame.url());
       const matchesName = target.frame?.name ? frame.name() === target.frame.name : true;
       return matchesUrl && matchesName;
     });
+  }
+
+  private async waitForTargetFrames(target: TargetSpec, timeoutMs: number): Promise<Frame[]> {
+    const deadline = Date.now() + timeoutMs;
+    do {
+      const frames = this.targetFrames(target);
+      if (frames.length > 0) return frames;
+      await this.page.waitForTimeout(50);
+    } while (Date.now() < deadline);
+    return [];
   }
 }
 

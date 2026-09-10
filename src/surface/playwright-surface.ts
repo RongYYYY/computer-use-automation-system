@@ -73,6 +73,27 @@ export class PlaywrightSurface implements SurfaceAdapter {
   }
 
   async observe(): Promise<SurfaceObservation> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        return await this.observeOnce();
+      } catch (error) {
+        lastError = error;
+        const message = error instanceof Error ? error.message : String(error);
+        if (
+          !/Execution context was destroyed|Frame was detached|Observation invalidated/i.test(message) ||
+          attempt === 3
+        ) {
+          throw error;
+        }
+        await this.page.waitForTimeout(75 * attempt);
+      }
+    }
+    throw lastError;
+  }
+
+  private async observeOnce(): Promise<SurfaceObservation> {
+    const initialFrameUrls = this.page.frames().map((frame) => frame.url()).join("\n");
     const viewport = this.page.viewportSize() ?? { width: 1280, height: 800 };
     const candidates: RuntimeCandidate[] = [];
     let nextId = 0;
@@ -174,6 +195,10 @@ export class PlaywrightSurface implements SurfaceAdapter {
         return `[Frame ${frame.url()}]\n${text.trim()}`;
       }),
     );
+    const finalFrameUrls = this.page.frames().map((frame) => frame.url()).join("\n");
+    if (finalFrameUrls !== initialFrameUrls) {
+      throw new Error("Observation invalidated by frame navigation");
+    }
     const screenshot = await this.page.screenshot({ type: "png" });
 
     return {

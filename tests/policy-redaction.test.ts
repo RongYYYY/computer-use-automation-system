@@ -72,4 +72,14 @@ describe("redaction", () => {
     expect(persisted).toContain("[REDACTED:memberId]");
     expect(persisted).not.toContain('"10001"');
   });
+
+  it("redacts sensitive values registered after extraction", () => {
+    const redactor = new Redactor();
+    redactor.add("balance", 12_450.73);
+
+    expect(redactor.value({ balance: 12_450.73, summary: "Balance: 12450.73" })).toEqual({
+      balance: "[REDACTED:balance]",
+      summary: "Balance: [REDACTED:balance]",
+    });
+  });
 });

@@ -62,7 +62,7 @@ export async function replayCapability(options: ReplayOptions): Promise<ReplayRe
   try {
     for (const step of artifact.steps) {
       const priorOutcome = await detectKnownOutcome(artifact, options.surface, inputs);
-      const priorResult = await handleTerminalOutcome(priorOutcome, logger);
+      const priorResult = await handleTerminalOutcome(priorOutcome, logger, step.id);
       if (priorResult) return priorResult;
 
       const executionResult = await executeStep({
@@ -221,7 +221,7 @@ async function executeStep(options: ExecuteStepOptions): Promise<ReplayResult | 
   for (let attempt = 1; attempt <= step.retry.maxAttempts; attempt += 1) {
     try {
       if (!performedByHuman) {
-        await performAction(step, surface, inputs, outputs, logger);
+        await performAction(step, artifact, surface, inputs, outputs, logger);
       }
       for (const condition of step.postconditions) {
         await surface.waitFor(condition, inputs, step.timeoutMs);
@@ -271,6 +271,7 @@ async function executeStep(options: ExecuteStepOptions): Promise<ReplayResult | 
 
 async function performAction(
   step: Step,
+  artifact: CapabilityArtifact,
   surface: SurfaceAdapter,
   inputs: Readonly<Record<string, Scalar>>,
   outputs: Record<string, Scalar>,
@@ -299,6 +300,8 @@ async function performAction(
     case "extract": {
       const extracted = await surface.extract(action.target, step.timeoutMs);
       outputs[action.output] = parseExtracted(extracted.value, action.parser);
+      const contract = artifact.outputs.find(({ name }) => name === action.output);
+      if (contract?.sensitive) logger.registerSensitive(action.output, outputs[action.output]);
       await logger.event("output.extracted", {
         stepId: step.id,
         output: action.output,
@@ -333,6 +336,7 @@ async function detectKnownOutcome(
 async function handleTerminalOutcome(
   match: OutcomeMatch | undefined,
   logger: RunLogger,
+  stepId?: string,
 ): Promise<ReplayResult | undefined> {
   if (!match || match.outcome.classification === "recoverable") return undefined;
   if (match.outcome.classification === "business") {
@@ -340,7 +344,7 @@ async function handleTerminalOutcome(
     await logger.event("replay.business_outcome", result);
     return result;
   }
-  throw new ClassifiedRunError(match.outcome.code, match.outcome.description);
+  throw new ClassifiedRunError(match.outcome.code, match.outcome.description, stepId);
 }
 
 async function recover(outcome: KnownOutcome, options: ExecuteStepOptions): Promise<boolean> {

@@ -47,6 +47,10 @@ export class RunLogger {
     return event;
   }
 
+  registerSensitive(name: string, value: unknown): void {
+    this.redactor.add(name, value);
+  }
+
   evidencePath(filename: string): string {
     if (path.basename(filename) !== filename) {
       throw new Error("Evidence filename must not contain a directory component");

@@ -4,19 +4,18 @@ const BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+/-]+=*\b/gi;
 const SSN_PATTERN = /\b\d{3}-\d{2}-\d{4}\b/g;
 
 export class Redactor {
-  private readonly replacements: readonly { value: string; replacement: string }[];
+  private readonly replacements: { value: string; replacement: string }[] = [];
 
   constructor(sensitiveValues: Readonly<Record<string, unknown>> = {}) {
-    this.replacements = Object.entries(sensitiveValues)
-      .filter((entry): entry is [string, string | number | boolean] =>
-        ["string", "number", "boolean"].includes(typeof entry[1]),
-      )
-      .map(([name, value]) => ({
-        value: String(value),
-        replacement: `[REDACTED:${name}]`,
-      }))
-      .filter(({ value }) => value.length > 0)
-      .sort((left, right) => right.value.length - left.value.length);
+    for (const [name, value] of Object.entries(sensitiveValues)) this.add(name, value);
+  }
+
+  add(name: string, value: unknown): void {
+    if (!["string", "number", "boolean"].includes(typeof value)) return;
+    const text = String(value);
+    if (!text || this.replacements.some((item) => item.value === text)) return;
+    this.replacements.push({ value: text, replacement: `[REDACTED:${name}]` });
+    this.replacements.sort((left, right) => right.value.length - left.value.length);
   }
 
   text(value: string): string {
@@ -36,6 +35,9 @@ export class Redactor {
 
   private walk(value: unknown, seen: WeakSet<object>): unknown {
     if (typeof value === "string") return this.text(value);
+    if (typeof value === "number" || typeof value === "boolean") {
+      return this.replacements.find((item) => item.value === String(value))?.replacement ?? value;
+    }
     if (Array.isArray(value)) return value.map((item) => this.walk(item, seen));
     if (!value || typeof value !== "object") return value;
     if (seen.has(value)) return "[Circular]";

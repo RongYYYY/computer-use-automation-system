@@ -84,6 +84,8 @@ export async function discoverCapability(options: DiscoveryOptions): Promise<Dis
     goal: options.goal,
     target: options.target,
     inputs: options.inputs,
+    decisionProvider: options.provider.name ?? "custom",
+    model: options.provider.model ?? null,
   });
 
   const navigateStep: Step = {

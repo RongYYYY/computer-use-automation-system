@@ -73,6 +73,8 @@ export interface DecisionContext {
 }
 
 export interface DecisionProvider {
+  readonly name?: string;
+  readonly model?: string;
   decide(context: DecisionContext): Promise<DiscoveryDecision>;
 }
 

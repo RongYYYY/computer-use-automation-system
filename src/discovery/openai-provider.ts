@@ -13,8 +13,9 @@ export interface OpenAIDecisionProviderOptions {
 }
 
 export class OpenAIDecisionProvider implements DecisionProvider {
+  readonly name = "openai";
+  readonly model: string;
   private readonly client: OpenAI;
-  private readonly model: string;
 
   constructor(options: OpenAIDecisionProviderOptions) {
     this.client = new OpenAI({ apiKey: options.apiKey });

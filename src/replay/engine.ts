@@ -175,29 +175,36 @@ async function executeStep(options: ExecuteStepOptions): Promise<ReplayResult | 
   }
 
   for (const condition of step.preconditions) {
-    try {
-      await surface.waitFor(condition, inputs, step.timeoutMs);
-    } catch {
-      const match = await detectKnownOutcome(artifact, surface, inputs, 750);
-      if (match?.outcome.classification === "business") {
-        const result = businessResult(match.outcome, logger.runId);
-        await logger.event("replay.business_outcome", result);
-        return result;
-      }
-      if (match?.outcome.classification === "failure") {
+    let match: OutcomeMatch | undefined;
+    while (true) {
+      match = await waitForPreconditionOrOutcome(
+        artifact,
+        surface,
+        condition,
+        inputs,
+        step.timeoutMs,
+        step.id,
+      );
+      if (match?.outcome.classification !== "recoverable") break;
+      if (!(await recover(match.outcome, options))) {
         throw new ClassifiedRunError(
-          match.outcome.code,
-          match.outcome.description,
+          "recovery_exhausted",
+          `Recovery limit reached for ${match.outcome.code}`,
           step.id,
-          undefined,
-          surface.currentUrl(),
         );
       }
+    }
+    if (match?.outcome.classification === "business") {
+      const result = businessResult(match.outcome, logger.runId);
+      await logger.event("replay.business_outcome", result);
+      return result;
+    }
+    if (match?.outcome.classification === "failure") {
       throw new ClassifiedRunError(
-        "precondition_failed",
-        `Precondition failed for step ${step.id}`,
+        match.outcome.code,
+        match.outcome.description,
         step.id,
-        JSON.stringify(condition),
+        undefined,
         surface.currentUrl(),
       );
     }
@@ -343,6 +350,30 @@ async function detectKnownOutcome(
     if (Date.now() < deadline) await delay(25);
   } while (Date.now() < deadline);
   return undefined;
+}
+
+async function waitForPreconditionOrOutcome(
+  artifact: CapabilityArtifact,
+  surface: SurfaceAdapter,
+  condition: Step["preconditions"][number],
+  inputs: Readonly<Record<string, Scalar>>,
+  timeoutMs: number,
+  stepId: string,
+): Promise<OutcomeMatch | undefined> {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    const outcome = await detectKnownOutcome(artifact, surface, inputs);
+    if (outcome) return outcome;
+    if (await surface.check(condition, inputs, 100)) return undefined;
+    await delay(50);
+  } while (Date.now() < deadline);
+  throw new ClassifiedRunError(
+    "precondition_failed",
+    `Precondition failed for step ${stepId}`,
+    stepId,
+    JSON.stringify(condition),
+    surface.currentUrl(),
+  );
 }
 
 async function handleTerminalOutcome(

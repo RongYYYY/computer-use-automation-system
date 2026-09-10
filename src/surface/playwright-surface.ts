@@ -379,40 +379,49 @@ export class PlaywrightSurface implements SurfaceAdapter {
     timeoutMs: number,
     waitForFrame = true,
   ): Promise<ResolvedLocator> {
-    const frames = waitForFrame
-      ? await this.waitForTargetFrames(target, timeoutMs)
-      : this.targetFrames(target);
-    const attempts: ResolutionAttempt[] = [];
+    const deadline = Date.now() + timeoutMs;
+    let attempts: ResolutionAttempt[] = [];
+    do {
+      const frames = this.targetFrames(target);
+      const currentAttempts: ResolutionAttempt[] = [];
 
-    for (const [strategyIndex, strategy] of target.strategies.entries()) {
-      if (strategy.kind === "coordinates") {
-        attempts.push({ strategy: "coordinates", matchCount: 0, detail: "Coordinate replay is action-only" });
-        continue;
+      for (const [strategyIndex, strategy] of target.strategies.entries()) {
+        if (strategy.kind === "coordinates") {
+          currentAttempts.push({
+            strategy: "coordinates",
+            matchCount: 0,
+            detail: "Coordinate replay is action-only",
+          });
+          continue;
+        }
+
+        for (const frame of frames) {
+          const locator = locatorFor(frame, strategy);
+          const count = await locator.count().catch(() => 0);
+          currentAttempts.push({
+            strategy: strategy.kind,
+            matchCount: count,
+            detail: `${frame.url()} :: ${strategyDescription(strategy)}`,
+          });
+          if (count !== 1) continue;
+          const candidate = locator.first();
+          if (!(await candidate.isVisible().catch(() => false))) continue;
+          return {
+            locator: candidate,
+            resolution: {
+              target: target.description,
+              strategyKind: strategy.kind,
+              strategyIndex,
+              frameUrl: frame.url(),
+            },
+          };
+        }
       }
 
-      for (const frame of frames) {
-        const locator = locatorFor(frame, strategy);
-        const count = await locator.count();
-        attempts.push({
-          strategy: strategy.kind,
-          matchCount: count,
-          detail: `${frame.url()} :: ${strategyDescription(strategy)}`,
-        });
-        if (count !== 1) continue;
-        const candidate = locator.first();
-        await candidate.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 2_000) }).catch(() => undefined);
-        if (!(await candidate.isVisible())) continue;
-        return {
-          locator: candidate,
-          resolution: {
-            target: target.description,
-            strategyKind: strategy.kind,
-            strategyIndex,
-            frameUrl: frame.url(),
-          },
-        };
-      }
-    }
+      attempts = currentAttempts;
+      if (!waitForFrame || Date.now() >= deadline) break;
+      await this.page.waitForTimeout(50);
+    } while (Date.now() < deadline);
 
     throw new TargetResolutionError(target.description, attempts);
   }
@@ -433,15 +442,6 @@ export class PlaywrightSurface implements SurfaceAdapter {
     });
   }
 
-  private async waitForTargetFrames(target: TargetSpec, timeoutMs: number): Promise<Frame[]> {
-    const deadline = Date.now() + timeoutMs;
-    do {
-      const frames = this.targetFrames(target);
-      if (frames.length > 0) return frames;
-      await this.page.waitForTimeout(50);
-    } while (Date.now() < deadline);
-    return [];
-  }
 }
 
 function locatorFor(frame: Frame, strategy: Exclude<LocatorStrategy, { kind: "coordinates" }>): Locator {

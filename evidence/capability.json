@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "name": "Look up savings balance",
   "description": "Find a synthetic member and return the current savings balance.",
-  "createdAt": "2026-09-10T17:04:23.350Z",
+  "createdAt": "2026-09-10T17:14:51.784Z",
   "app": {
     "family": "northstar-demo",
     "surface": "browser",
@@ -70,7 +70,7 @@
     },
     {
       "id": "step-02-type-member-number",
-      "description": "Enter the supplied member identifier in the member search field.",
+      "description": "Enter the supplied member identifier in the search field.",
       "action": {
         "kind": "type",
         "target": {
@@ -142,7 +142,7 @@
     },
     {
       "id": "step-03-click-search",
-      "description": "Submit the member search.",
+      "description": "Submit the member search to locate the requested record.",
       "action": {
         "kind": "click",
         "target": {
@@ -191,7 +191,7 @@
     },
     {
       "id": "step-04-extract-balance",
-      "description": "Extract the savings available balance using its stable data-field attribute.",
+      "description": "Extract the savings available balance from its semantically identified field.",
       "action": {
         "kind": "extract",
         "target": {

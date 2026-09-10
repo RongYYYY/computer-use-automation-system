@@ -12,6 +12,7 @@ coverage/
 # Playwright runtime output
 playwright-report/
 test-results/
+.runs/
 
 # Local operating-system files
 .DS_Store
